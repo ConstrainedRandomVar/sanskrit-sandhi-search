@@ -33,8 +33,14 @@ When you invoke the extension (by clicking its toolbar icon or pressing its
 keyboard shortcut), it requests temporary access to the current browser tab
 (the `activeTab` permission), solely to read that page's visible text and draw
 highlights over matches. It has no standing access to any website and does nothing
-until you invoke it. This access is used only for the on-page search feature and
-for no other purpose.
+until you invoke it.
+
+At that same moment of invocation, the `scripting` permission is used to inject the
+extension's own bundled search bar and matching engine into the current tab. Only
+code packaged inside the extension is injected — no remote or externally hosted
+code is ever loaded or executed.
+
+This access is used only for the on-page search feature and for no other purpose.
 
 ## Contact
 
