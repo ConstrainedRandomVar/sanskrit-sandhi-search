@@ -35,7 +35,7 @@ is used only for the on-page search feature and for no other purpose.
 
 ## Contact
 
-For questions about this policy, contact: <YOUR-EMAIL-HERE>
+For questions about this policy, contact: hlakshmi@gmail.com
 
 ## Changes
 
