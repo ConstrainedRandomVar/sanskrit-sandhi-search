@@ -1,6 +1,6 @@
 # Privacy Policy — Sanskrit Sandhi Search
 
-_Last updated: 2026-07-15_
+_Last updated: 2026-07-16_
 
 Sanskrit Sandhi Search is a browser extension that provides a sandhi-tolerant
 "find on page" for Devanāgarī text. This policy explains, plainly, what it does
@@ -29,9 +29,12 @@ viewing.
 
 ## Permissions
 
-The extension requests access to web pages (host permission) solely so it can read
-the visible text of the current page and draw highlights over matches. This access
-is used only for the on-page search feature and for no other purpose.
+When you invoke the extension (by clicking its toolbar icon or pressing its
+keyboard shortcut), it requests temporary access to the current browser tab
+(the `activeTab` permission), solely to read that page's visible text and draw
+highlights over matches. It has no standing access to any website and does nothing
+until you invoke it. This access is used only for the on-page search feature and
+for no other purpose.
 
 ## Contact
 

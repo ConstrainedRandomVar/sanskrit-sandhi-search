@@ -53,13 +53,17 @@ Devanāgarī (Sanskrit) text on the page the user is currently viewing.
 
 ## Permission justifications (required for review)
 
-Host permission — `<all_urls>` / “Read and change all your data on websites”:
-> The extension’s single feature is an on-page find for Devanāgarī text. To find
-> and highlight matches it must read the visible text of, and insert highlight
-> markup into, the page the user is currently viewing. Sanskrit texts are hosted
-> across many different websites, so the user must be able to run the search on
-> any page they open. All reading and highlighting happens locally in the browser;
-> no page content or query is transmitted or stored.
+activeTab:
+> The extension’s single feature is an on-page find for Devanāgarī text. When the
+> user invokes it (toolbar click or keyboard shortcut), it needs temporary access
+> to the current tab to read the visible text and insert highlight markup. Access
+> is granted only on that explicit invocation, only for that tab, and only until
+> the user navigates to another site. Nothing is transmitted or stored.
+
+scripting:
+> Used to inject the search UI and matching engine into the current tab at the
+> moment the user invokes the extension (paired with activeTab). No scripts run on
+> any page until the user asks.
 
 Remote code: None. All code is contained in the extension package.
 
@@ -68,13 +72,11 @@ Data collection: None. The extension collects no user data.
 ---
 
 ## Pre-submit checklist (things only you can do)
-1. Host the privacy policy (store/PRIVACY.md) at a public URL and paste that URL
-   into the dashboard. Easiest: create a public GitHub Gist of PRIVACY.md, or a
-   GitHub Pages page, or a “Publish to web” Google Doc. Replace <YOUR-EMAIL-HERE>
-   in the policy first.
-2. Capture 1–5 screenshots at 1280×800 (or 640×400): load the extension, open a
-   Sanskrit page (e.g. a stotranidhi.com or upasanayoga.org page), run a search,
-   and screenshot the highlighted result with the bar visible.
+1. Privacy policy is already hosted — paste this URL into the dashboard:
+   https://github.com/ConstrainedRandomVar/sanskrit-sandhi-search/blob/main/store/PRIVACY.md
+   (With activeTab a privacy policy may not even be required, but it's ready either way.)
+2. Screenshots (1280×800) are prepared in screenshots/store-ready/. Optional:
+   recapture with a taller browser window for a fuller, less letterboxed image.
 3. (Optional) A 440×280 small promo tile helps the listing look complete.
 4. In “Privacy practices”: declare NO data collection and check the compliance box.
 5. Set visibility (Public / Unlisted) and Submit for review.

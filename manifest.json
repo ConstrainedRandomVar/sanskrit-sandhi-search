@@ -19,14 +19,7 @@
     }
   },
   "background": { "service_worker": "background.js" },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["sanskrit-search.js", "highlight-core.js", "content.js"],
-      "run_at": "document_idle"
-    }
-  ],
-  "host_permissions": ["<all_urls>"],
+  "permissions": ["activeTab", "scripting"],
   "commands": {
     "toggle-search": {
       "suggested_key": { "default": "Ctrl+Shift+S", "mac": "Command+Shift+S" },
