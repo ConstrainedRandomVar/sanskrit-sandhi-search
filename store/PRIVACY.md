@@ -29,18 +29,21 @@ viewing.
 
 ## Permissions
 
-When you invoke the extension (by clicking its toolbar icon or pressing its
-keyboard shortcut), it requests temporary access to the current browser tab
-(the `activeTab` permission), solely to read that page's visible text and draw
-highlights over matches. It has no standing access to any website and does nothing
-until you invoke it.
+The extension uses two permissions. Both are scoped to the tab you are actively
+using, and neither takes effect until you invoke the extension (by clicking its
+toolbar icon or pressing its keyboard shortcut):
 
-At that same moment of invocation, the `scripting` permission is used to inject the
-extension's own bundled search bar and matching engine into the current tab. Only
-code packaged inside the extension is injected — no remote or externally hosted
-code is ever loaded or executed.
+- **`activeTab`** — grants temporary access to the current tab, only on that
+  invocation, so the extension can read the page's visible Devanāgarī text and draw
+  highlight marks over matches. Access is limited to the active tab and is revoked
+  when you navigate to another site.
+- **`scripting`** — used, at the same moment of invocation, to inject the
+  extension's own bundled search bar and matching engine into the current tab. Only
+  code packaged inside the extension is injected; no remote or externally hosted
+  code is ever loaded or executed.
 
-This access is used only for the on-page search feature and for no other purpose.
+The extension has no standing access to any website, does nothing until you invoke
+it, and never transmits or stores your queries or page content.
 
 ## Contact
 
