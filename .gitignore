@@ -1,0 +1,8 @@
+# build artifacts
+*.zip
+
+# OS / editor cruft
+.DS_Store
+*.swp
+.idea/
+.vscode/
