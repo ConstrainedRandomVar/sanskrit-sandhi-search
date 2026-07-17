@@ -222,6 +222,7 @@
   // ---- highlighting helpers (return sentinel-marked plain text) ----
   function wrap(surface, a, b) {
     b = extendEnd(surface, b);
+    while (b > a && /[\s‌‍]/.test(surface[b - 1])) b--;   // trim a trailing space / ZW-joiner from the highlight
     var st = Math.max(0, a - 55), en = Math.min(surface.length, b + 70);
     return (st > 0 ? '…' : '') + surface.slice(st, a) + M1 + surface.slice(a, b) + M2 + surface.slice(b, en) + (en < surface.length ? '…' : '');
   }
