@@ -25,7 +25,8 @@
     if (m === 'cooccur') return [];                        // co-occurrence highlighting not in v1
     if (ex.stems.length <= 1) return [                     // single-word sandhi
       { s: ex.stems[0], drop: false }, { s: ex.mls, drop: false },
-      { s: ex.stems[0], drop: true }, { s: ex.mls, drop: true }, { s: ex.mlsA, drop: true }
+      { s: ex.stems[0], drop: true }, { s: ex.mls, drop: true }, { s: ex.mlsA, drop: true },
+      { s: ex.nasalA, drop: false }, { s: ex.nasalA, drop: true }   // word-final nasal → anusvāra (kurvan → कुर्वं)
     ];
     var list = [                                           // multi-word sandhi (same set snippet() tries)
       { s: ex.spaced, drop: false }, { s: ex.joined, drop: true }, { s: ex.joinedStem, drop: true },
@@ -58,6 +59,7 @@
         from = k + 1;
         if (!c.drop && k !== 0 && hay[k - 1] !== ' ') continue;   // space-preserving: require word boundary (mirrors stemMatch)
         var start = mp[k], end = mp[Math.min(k + c.s.length, mp.length - 1)];
+        if (SS.extendEnd) end = SS.extendEnd(surface, end);   // swallow trailing ्/ं/ः/mātrā so stem matches don't leave a dangling sign
         if (end > start) spans.push([start, end]);
       }
     }
