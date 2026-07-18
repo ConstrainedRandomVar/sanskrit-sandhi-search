@@ -26,6 +26,7 @@
     if (ex.stems.length <= 1) return [                     // single-word sandhi
       { s: ex.stems[0], drop: false }, { s: ex.mls, drop: false },
       { s: ex.stems[0], drop: true }, { s: ex.mls, drop: true }, { s: ex.mlsA, drop: true },
+      { s: ex.mlsE, drop: true },   // leading-अ elided (wide-only): अस्त्रियाम् → स्त्रियाम् (गुणेऽस्त्रियाम्)
       { s: ex.nasalA, drop: false }, { s: ex.nasalA, drop: true }   // word-final nasal → anusvāra (kurvan → कुर्वं)
     ];
     var list = [                                           // multi-word sandhi (same set snippet() tries)
