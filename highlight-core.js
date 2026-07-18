@@ -26,9 +26,8 @@
     if (ex.stems.length <= 1) return [                     // single-word sandhi
       { s: ex.stems[0], drop: false }, { s: ex.mls, drop: false },
       { s: ex.stems[0], drop: true }, { s: ex.mls, drop: true }, { s: ex.mlsA, drop: true },
-      { s: ex.mlsE, drop: true },   // leading-अ elided (wide-only): अस्त्रियाम् → स्त्रियाम् (गुणेऽस्त्रियाम्)
       { s: ex.nasalA, drop: false }, { s: ex.nasalA, drop: true }   // word-final nasal → anusvāra (kurvan → कुर्वं)
-    ];
+    ].concat((ex.mlsE || []).map(function (s) { return { s: s, drop: true }; }));   // leading-अ elided, े/ो-anchored (गुणेऽस्त्रियाम्)
     var list = [                                           // multi-word sandhi (same set snippet() tries)
       { s: ex.spaced, drop: false }, { s: ex.joined, drop: true }, { s: ex.joinedStem, drop: true },
       { s: ex.joinedCore, drop: true }, { s: ex.abut, drop: true }, { s: ex.spacedM, drop: false },

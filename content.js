@@ -150,8 +150,8 @@
     }
   }
   // sandhi is ADDITIVE: exact hits render SOLID; every EXTRA high-recall candidate renders
-  // DASHED ("possible"). No manual 'wide' needed, and it's consistent whether or not the page
-  // also happens to contain an exact form (e.g. a pada-split अस्त्रियाम् next to fused गुणेऽस्त्रियाम्).
+  // DASHED ("possible") — always, and consistent whether or not the page also happens to contain
+  // an exact form (e.g. a pada-split अस्त्रियाम् next to the fused sūtra गुणेऽस्त्रियाम्).
   function runSearch() {
     clearHighlights();
     var raw = input.value.trim();
@@ -159,8 +159,7 @@
     ensurePageStyle();
     var mode = modeSel.value;
     var precise = null, wide = null;
-    if (mode === 'wide') wide = SS.expandQuery(raw, 'sandhi', true);            // all high-recall (dashed)
-    else if (mode === 'sandhi') { precise = SS.expandQuery(raw, 'sandhi'); wide = SS.expandQuery(raw, 'sandhi', true); }
+    if (mode === 'sandhi') { precise = SS.expandQuery(raw, 'sandhi'); wide = SS.expandQuery(raw, 'sandhi', true); }
     else precise = SS.expandQuery(raw, mode);                                   // loose / exact: precise only
     var groups = collectBlocks();
     var perNode = new Map();   // textNode -> [{start,end,mid,fuzzy}]
@@ -175,7 +174,7 @@
       var allSpans = wide ? HL.findSpans(surface, wide, SS) : exactSpans;
       for (var s = 0; s < allSpans.length; s++) {
         var a = allSpans[s][0], b = allSpans[s][1];
-        var isFuzzy = (mode === 'wide') ? true : (mode === 'sandhi' ? !spansOverlap(allSpans[s], exactSpans) : false);
+        var isFuzzy = (mode === 'sandhi') ? !spansOverlap(allSpans[s], exactSpans) : false;
         if (isFuzzy) possibleN++; else exactN++;
         var thisMid = mid++, cur = null;
         for (var c = a; c < b; c++) {
@@ -258,7 +257,7 @@
       '</style>' +
       '<div class="bar">' +
       '<input class="q" placeholder="Sanskrit search — ITRANS or देवनागरी" spellcheck="false"/>' +
-      '<select class="mode" title="sandhi: precise, auto-falls back to fuzzy · wide: always high-recall · loose · exact"><option value="sandhi">sandhi</option><option value="wide">wide</option><option value="loose">loose</option><option value="exact">exact</option></select>' +
+      '<select class="mode" title="sandhi: exact hits + possible (dashed) sandhi-fuzzy candidates · loose: space-insensitive · exact"><option value="sandhi">sandhi</option><option value="loose">loose</option><option value="exact">exact</option></select>' +
       '<span class="count"></span>' +
       '<button class="prev" title="Previous (Shift+Enter)">▲</button>' +
       '<button class="next" title="Next (Enter)">▼</button>' +

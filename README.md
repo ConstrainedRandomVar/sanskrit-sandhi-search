@@ -27,7 +27,7 @@ tataH ca             →  finds  ततश्च
 - Click the toolbar icon, or press **Ctrl+Shift+S** (**⌘+Shift+S** on Mac), to toggle the bar.
 - Type a query (ITRANS like `buddheH jAyamAnAH`, or paste Devanāgarī).
 - **Enter** = next match · **Shift+Enter** = previous · **Esc** = close.
-- **Modes:** `sandhi` (default; shows exact hits **solid** plus any additional sandhi-fuzzy candidates **dashed** ("N possible"), so fused occurrences are never missed — add a word to refine) · `wide` (everything high-recall) · `loose` (space-insensitive) · `exact`.
+- **Modes:** `sandhi` (default; shows exact hits **solid** plus any additional sandhi-fuzzy candidates **dashed** ("N possible"), so fused occurrences are never missed — add a word to refine) · `loose` (space-insensitive) · `exact`.
 - Rebind the shortcut at `chrome://extensions/shortcuts` if it conflicts.
 
 ## How it works

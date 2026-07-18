@@ -307,10 +307,12 @@
     // single-word left-edge अ→ā: an अ-initial word can fuse onto a preceding a/ā as ā (sva+avidyā
     // → svāvidyā). Guarded to stems ≥5 chars — shorter अ-forms (ा, ात्र, ार्थ…) flood the index.
     var mlsA = (stems[0] && stems[0][0] === 'अ' && (wide || stems[0].length >= 5)) ? 'ा' + stems[0].slice(1) : '';
-    // leading-अ ELIDED form (pūrvarūpa after e/o: गुणे + अस्त्रियाम् → गुणेऽस्त्रियाम् → normalized
-    // गुणेस्त्रियाम्, avagraha dropped). The bare form floods (त्र, विद्या…) and can false-match a
-    // real word (स्त्रियाम् ≠ अस्त्रियाम्), so it is WIDE-ONLY + length-gated → a labeled "possible".
-    var mlsE = (wide && stems[0] && stems[0][0] === 'अ' && stems[0].length >= 5) ? stems[0].slice(1) : '';
+    // leading-अ ELIDED form (pūrvarūpa: e/o + अ → अ elided; गुणे+अस्त्रियाम् → गुणेऽस्त्रियाम् →
+    // normalized गुणेस्त्रियाम्). ANCHORED to the preceding े/ो: a BARE elided form (स्त्रिया)
+    // false-matches the real, often antonym word everywhere (स्त्री ≠ अस्त्री, विद्या ≠ अविद्या);
+    // since the elision only happens after e/o, the anchor keeps only genuine cases. WIDE-ONLY
+    // + length-gated → labeled "possible". Array of the two anchors (े / ो).
+    var mlsE = (wide && stems[0] && stems[0][0] === 'अ' && stems[0].length >= 5) ? ['े' + stems[0].slice(1), 'ो' + stems[0].slice(1)] : [];
     // single-word right-edge: a word-final न्/ङ्/ण् doubles → anusvāra when sandhi'd before a
     // following vowel in the text (kurvan → कुर्वं, matching कुर्वन्नेवेह). See nasalAnusvara.
     var nasalA = nasalAnusvara(words[0] || '', wide);
@@ -415,7 +417,7 @@
     if (mode === 'exact') return b._n.includes(ex.qn);
     if (mode === 'loose') return b._n.includes(ex.qn) || b._nc.includes(ex.qnc);
     if (mode === 'cooccur') return coMatch(b.s, ex.stems);
-    if (ex.stems.length <= 1) return !!(ex.stems[0] && (stemMatch(b._n, ex.stems) || b._nc.includes(ex.stems[0]) || (ex.mls && b._nc.includes(ex.mls)) || (ex.mlsA && b._nc.includes(ex.mlsA)) || (ex.mlsE && b._nc.includes(ex.mlsE)) || (ex.nasalA && (stemMatch(b._n, [ex.nasalA]) || b._nc.includes(ex.nasalA)))));
+    if (ex.stems.length <= 1) return !!(ex.stems[0] && (stemMatch(b._n, ex.stems) || b._nc.includes(ex.stems[0]) || (ex.mls && b._nc.includes(ex.mls)) || (ex.mlsA && b._nc.includes(ex.mlsA)) || (ex.mlsE && ex.mlsE.some(function (s) { return b._nc.includes(s); })) || (ex.nasalA && (stemMatch(b._n, [ex.nasalA]) || b._nc.includes(ex.nasalA)))));
     return b._n.includes(ex.spaced) || b._nc.includes(ex.abut) || (ex.joined && b._nc.includes(ex.joined)) || (ex.joinedStem && b._nc.includes(ex.joinedStem)) || (ex.joinedCore && b._nc.includes(ex.joinedCore))
       || (ex.spacedM && b._n.includes(ex.spacedM)) || (ex.abutM && b._nc.includes(ex.abutM)) || (ex.joinedM && b._nc.includes(ex.joinedM)) || (ex.joinedMStem && b._nc.includes(ex.joinedMStem)) || (ex.joinedMCore && b._nc.includes(ex.joinedMCore))
       || ex.combos.some(function (s) { return b._nc.includes(s); });
@@ -424,7 +426,7 @@
     var mode = ex.mode;
     if (mode === 'cooccur') return snippetCo(b.s, ex.stems);
     if (mode !== 'sandhi') return snippetPlain(b.s, ex.q);
-    if (ex.stems.length <= 1) return snippetAny(b.s, [{ s: ex.stems[0], drop: false }, { s: ex.mls, drop: false }, { s: ex.stems[0], drop: true }, { s: ex.mls, drop: true }, { s: ex.mlsA, drop: true }, { s: ex.mlsE, drop: true }, { s: ex.nasalA, drop: false }, { s: ex.nasalA, drop: true }]);
+    if (ex.stems.length <= 1) return snippetAny(b.s, [{ s: ex.stems[0], drop: false }, { s: ex.mls, drop: false }, { s: ex.stems[0], drop: true }, { s: ex.mls, drop: true }, { s: ex.mlsA, drop: true }, { s: ex.nasalA, drop: false }, { s: ex.nasalA, drop: true }].concat(ex.mlsE.map(function (s) { return { s: s, drop: true }; })));
     return snippetAny(b.s, [{ s: ex.spaced, drop: false }, { s: ex.joined, drop: true }, { s: ex.joinedStem, drop: true }, { s: ex.joinedCore, drop: true }, { s: ex.abut, drop: true }, { s: ex.spacedM, drop: false }, { s: ex.joinedM, drop: true }, { s: ex.joinedMStem, drop: true }, { s: ex.joinedMCore, drop: true }, { s: ex.abutM, drop: true }].concat(ex.combos.map(function (s) { return { s: s, drop: true }; })));
   }
 
