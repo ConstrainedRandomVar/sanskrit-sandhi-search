@@ -64,7 +64,9 @@
 
   // ---- text collection: group text nodes by nearest block-level ancestor ----
   var BLOCK = { P: 1, DIV: 1, LI: 1, TD: 1, TH: 1, BLOCKQUOTE: 1, H1: 1, H2: 1, H3: 1, H4: 1, H5: 1, H6: 1, SECTION: 1, ARTICLE: 1, DD: 1, DT: 1, FIGCAPTION: 1, PRE: 1, MAIN: 1, ASIDE: 1, CAPTION: 1, BODY: 1 };
-  var SKIP = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEXTAREA: 1, INPUT: 1, SELECT: 1, OPTION: 1, HEAD: 1 };
+  // skip non-content: scripts/inputs AND site chrome (nav menus, header, footer). The latter
+  // (e.g. ashtadhyayi's left-nav sūtra list) otherwise floods results with off-screen matches.
+  var SKIP = { SCRIPT: 1, STYLE: 1, NOSCRIPT: 1, TEXTAREA: 1, INPUT: 1, SELECT: 1, OPTION: 1, HEAD: 1, NAV: 1, HEADER: 1, FOOTER: 1 };
   var container = null; // our own UI host (excluded from search)
 
   function nearestBlock(node) {
