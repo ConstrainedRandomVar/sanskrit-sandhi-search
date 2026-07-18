@@ -35,7 +35,7 @@ Highlights:
 • Orthography- and space-tolerant: canonicalizes both your query and the page text
   so equivalent spellings match.
 • In-place highlighting with next/previous navigation and a match counter.
-• Three modes: sandhi (default, high recall) · loose (space-insensitive) · exact.
+• Modes: sandhi (default; shows exact hits plus any additional sandhi-fuzzy "possible" candidates (dashed), so fused occurrences are never missed) · loose (space-insensitive) · exact.
 
 Privacy: 100% local. No network calls, no accounts, no tracking, no data leaves
 your browser.
