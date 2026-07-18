@@ -98,8 +98,11 @@
   function extendEnd(surface, end) {
     while (end < surface.length) {
       var o = surface.charCodeAt(end);
-      if ((o >= 0x0900 && o <= 0x0903) || o === 0x093C || (o >= 0x093E && o <= 0x094D) || (o >= 0x0951 && o <= 0x0957) || (o >= 0x0962 && o <= 0x0963)) end++;
-      else break;
+      if ((o >= 0x0900 && o <= 0x0903) || o === 0x093C || (o >= 0x093E && o <= 0x094D) || (o >= 0x0951 && o <= 0x0957) || (o >= 0x0962 && o <= 0x0963)) { end++; continue; }
+      // word-final varga-nasal + virāma (म्/न्/ङ्…): normalization folds word-final म् to anusvāra,
+      // which stripSandhi removes — pull it back so the highlight covers अस्त्रियाम्, not just अस्त्रिया.
+      if (NAS.indexOf(surface[end]) >= 0 && surface[end + 1] === '्' && !(end + 2 < surface.length && isCons(surface[end + 2]))) { end += 2; continue; }
+      break;
     }
     return end;
   }

@@ -79,16 +79,24 @@
     }
     return false;
   }
+  // is this element actually visible? checkVisibility() (Chrome) catches display:none,
+  // visibility:hidden, opacity:0 and content-visibility — SPAs use all of these for duplicate
+  // / off-screen copies. Falls back to a client-rect test on older engines.
+  function elVisible(el) {
+    if (!el) return false;
+    if (typeof el.checkVisibility === 'function')
+      return el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true });
+    return el.getClientRects().length > 0;
+  }
   // returns Map<blockEl, [textNode,...]> in document order
   function collectBlocks() {
     var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
       acceptNode: function (n) {
         if (!n.data || !/\S/.test(n.data)) return NodeFilter.FILTER_REJECT;
         if (skippable(n)) return NodeFilter.FILTER_REJECT;
-        // skip text in hidden subtrees (display:none) — SPAs render duplicate/off-screen
-        // copies; highlighting them inflates the count and traps Next on invisible nodes.
-        var pe = n.parentElement;
-        if (pe && pe.getClientRects().length === 0) return NodeFilter.FILTER_REJECT;
+        // skip text in hidden subtrees — SPAs render duplicate/off-screen copies; highlighting
+        // them inflates the count and traps Next on invisible nodes.
+        if (!elVisible(n.parentElement)) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
     });
