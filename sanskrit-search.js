@@ -108,8 +108,8 @@
   // anusvāra (kurvan + eva → kurvann → कुर्वंन), so a bare query ending in such a nasal
   // must ALSO try the anusvāra form to find its own word when it is sandhi'd in text.
   // Length-gated (base ≥ 4) so short words (सन् → सं) don't flood the index.
-  function nasalAnusvara(w) {
-    return (/[नङण]्$/.test(w) && w.length - 2 >= 4) ? w.slice(0, -2) + 'ं' : '';
+  function nasalAnusvara(w, wide) {
+    return (/[नङण]्$/.test(w) && (wide || w.length - 2 >= 4)) ? w.slice(0, -2) + 'ं' : '';
   }
 
   // external VOWEL sandhi: a (vowel/consonant-final) + b (vowel-initial)
@@ -289,7 +289,11 @@
   }
 
   // ---- query expansion / matching / snippet (per mode) ----
-  function expandQuery(input, mode) {
+  // `wide` = high-recall: drop the length gates on the leading-अ→ā and word-final-nasal→
+  // anusvāra forms, so short sandhi-fused words (अर्थ in एवार्थ…) are still found. Floods
+  // (e.g. ार्थ hits ~21% of a large corpus), so callers use it as a labeled fallback when
+  // the precise pass returns zero — never as the silent default. See matches/snippet.
+  function expandQuery(input, mode, wide) {
     var q = toDeva(input);
     var qn = normalize(q), qnc = normalize(q, true);
     // Normalize each query word ALONE (not the joined string): a word-final nasal must keep its
@@ -302,10 +306,10 @@
     var mls = matraLead(stems[0]);                                            // single-word left-edge (vowel-initial, no leading अ)
     // single-word left-edge अ→ā: an अ-initial word can fuse onto a preceding a/ā as ā (sva+avidyā
     // → svāvidyā). Guarded to stems ≥5 chars — shorter अ-forms (ा, ात्र, ार्थ…) flood the index.
-    var mlsA = (stems[0] && stems[0][0] === 'अ' && stems[0].length >= 5) ? 'ा' + stems[0].slice(1) : '';
+    var mlsA = (stems[0] && stems[0][0] === 'अ' && (wide || stems[0].length >= 5)) ? 'ा' + stems[0].slice(1) : '';
     // single-word right-edge: a word-final न्/ङ्/ण् doubles → anusvāra when sandhi'd before a
     // following vowel in the text (kurvan → कुर्वं, matching कुर्वन्नेवेह). See nasalAnusvara.
-    var nasalA = nasalAnusvara(words[0] || '');
+    var nasalA = nasalAnusvara(words[0] || '', wide);
     var leadA = function (w) { return w && w[0] === 'अ' ? 'ा' + w.slice(1) : matraLead(w); }; // phrase path also does अ→ā (savarṇa)
     var plw = leadA(words[0]), pls = leadA(stems[0]);
     var spacedM = plw ? [plw].concat(words.slice(1)).join(' ') : '';
@@ -345,7 +349,7 @@
     var JAS = { 'क': 'ग', 'च': 'ज', 'ट': 'ड', 'त': 'द', 'प': 'ब' };
     var lastJas = (lastW.slice(-1) === '्' && JAS[lastW.slice(-2, -1)]) ? lastW.slice(0, -2) + JAS[lastW.slice(-2, -1)] : '';
     // right-edge: last word's word-final nasal → anusvāra (doubled before a following out-of-query vowel)
-    var lastNasalA = nasalAnusvara(lastW);
+    var lastNasalA = nasalAnusvara(lastW, wide);
     var lastVars = words.length ? [lastW, lastStem, lastCore, lastYan, lastJas, lastNasalA].filter(function (x) { return x; }) : [];
     var joinMask = function (ws, mask, lastW, elideAv) {                      // full-phrase join over word-array ws; last word may be swapped for its stem/core
       var acc = ws[0];

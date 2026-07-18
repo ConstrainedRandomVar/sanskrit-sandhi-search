@@ -16,6 +16,7 @@
   var HL_CLASS = 'skt-hl', HL_ATTR = 'data-skt-mid';
   var matches = [];      // [{mid, firstMark}] in document order
   var active = -1;
+  var fuzzyActive = false;   // true when showing high-recall (auto-fallback or 'wide' mode) candidates
   var bar = null, input = null, modeSel = null, countEl = null;
 
   // ---- page-level style for our <mark>s (light DOM, so needs !important).
@@ -27,6 +28,7 @@
     st.id = 'skt-hl-style';
     st.textContent =
       'mark.' + HL_CLASS + '{padding:0 1px !important;border-radius:2px;}' +
+      'mark.' + HL_CLASS + '.skt-fuzzy{outline:1px dashed rgba(0,0,0,.5) !important;outline-offset:1px;}' +
       'mark.' + HL_CLASS + '.skt-active{outline:2px solid #111 !important;outline-offset:1px;}';
     (document.head || document.documentElement).appendChild(st);
   }
@@ -109,14 +111,14 @@
   }
 
   // wrap one text node given its non-overlapping ascending segments [{start,end,mid}]
-  function wrapNode(node, segs) {
+  function wrapNode(node, segs, fuzzy) {
     var text = node.data, frag = document.createDocumentFragment(), pos = 0;
     var col = chooseColors(node.parentElement);   // all marks in this node share the node's background
     for (var i = 0; i < segs.length; i++) {
       var s = segs[i];
       if (s.start > pos) frag.appendChild(document.createTextNode(text.slice(pos, s.start)));
       var mk = document.createElement('mark');
-      mk.className = HL_CLASS;
+      mk.className = HL_CLASS + (fuzzy ? ' skt-fuzzy' : '');   // fuzzy = high-recall/possible match (dashed outline)
       mk.setAttribute(HL_ATTR, String(s.mid));
       mk.setAttribute('data-skt-base', col.base); mk.setAttribute('data-skt-act', col.act);
       mk.setAttribute('data-skt-bfg', col.baseFg); mk.setAttribute('data-skt-afg', col.actFg);
@@ -130,15 +132,11 @@
     node.parentNode.replaceChild(frag, node);
   }
 
-  function runSearch() {
-    clearHighlights();
-    var raw = input.value.trim();
-    if (!raw) { updateCount(); return; }
-    ensurePageStyle();
-    var ex = SS.expandQuery(raw, modeSel.value);
+  // Run ONE expansion over the page: find spans per block, wrap them (fuzzy → tentative
+  // dashed styling). Returns the number of match runs wrapped.
+  function applyExpansion(ex, fuzzy) {
     var groups = collectBlocks();
-    var mid = 0;
-    // collect per-text-node segments across the whole page, then wrap node-by-node
+    var mid = 0, found = 0;
     var perNode = new Map(); // textNode -> [{start,end,mid}]
     groups.forEach(function (nodes) {
       // build block surface + per-char (node, offset) index
@@ -149,7 +147,7 @@
       }
       var spans = HL.findSpans(surface, ex, SS);
       for (var s = 0; s < spans.length; s++) {
-        var a = spans[s][0], b = spans[s][1], thisMid = mid++;
+        var a = spans[s][0], b = spans[s][1], thisMid = mid++; found++;
         // split the [a,b) run into per-node contiguous segments
         var cur = null;
         for (var c = a; c < b; c++) {
@@ -160,18 +158,35 @@
         if (cur) pushSeg(perNode, cur);
       }
     });
-    // wrap each node (segments already grouped; sort ascending within node)
     perNode.forEach(function (segs, node) {
       segs.sort(function (x, y) { return x.start - y.start; });
-      wrapNode(node, segs);
+      wrapNode(node, segs, fuzzy);
     });
-    // build ordered match list from the DOM (document order)
+    return found;
+  }
+  function rebuildMatchList() {   // ordered match list from the DOM (document order)
     matches = [];
     var all = document.querySelectorAll('mark.' + HL_CLASS), seen = {};
     for (var k = 0; k < all.length; k++) {
       var m = all[k].getAttribute(HL_ATTR);
       if (!seen[m]) { seen[m] = 1; matches.push(all[k]); }
     }
+  }
+  function runSearch() {
+    clearHighlights();
+    var raw = input.value.trim();
+    if (!raw) { fuzzyActive = false; updateCount(); return; }
+    ensurePageStyle();
+    var mode = modeSel.value, wideMode = (mode === 'wide');
+    var count = applyExpansion(SS.expandQuery(raw, wideMode ? 'sandhi' : mode, wideMode), wideMode);
+    fuzzyActive = wideMode;
+    // Never mislead with a bare "0": if a precise sandhi search finds nothing, fall back to
+    // the high-recall pass and label its results as possible/fuzzy (see updateCount).
+    if (count === 0 && mode === 'sandhi') {
+      count = applyExpansion(SS.expandQuery(raw, 'sandhi', true), true);
+      fuzzyActive = true;
+    }
+    rebuildMatchList();
     active = matches.length ? 0 : -1;
     updateCount();
     if (active >= 0) focusMatch(active, true);
@@ -207,7 +222,14 @@
   }
   function updateCount() {
     if (!countEl) return;
-    countEl.textContent = matches.length ? (active + 1) + ' / ' + matches.length : (input.value.trim() ? '0' : '');
+    if (!matches.length) {
+      countEl.textContent = input.value.trim() ? '0' : '';
+      countEl.style.color = '#666'; countEl.title = '';
+      return;
+    }
+    countEl.textContent = (active + 1) + ' / ' + matches.length + (fuzzyActive ? ' possible' : '');
+    countEl.style.color = fuzzyActive ? '#b45309' : '#666';   // amber signals tentative/high-recall hits
+    countEl.title = fuzzyActive ? 'No exact match — showing sandhi-fuzzy candidates. Add a word to refine.' : '';
   }
 
   // ---- UI (shadow root) ----
@@ -222,14 +244,14 @@
       'input.q{font:15px system-ui,sans-serif;padding:5px 8px;border:1px solid #bbb;border-radius:6px;width:230px;outline:none;}' +
       'input.q:focus{border-color:#ff8f00;}' +
       'select.mode{font:13px system-ui;padding:4px;border:1px solid #bbb;border-radius:6px;}' +
-      '.count{min-width:52px;text-align:center;color:#666;font-variant-numeric:tabular-nums;}' +
+      '.count{min-width:52px;text-align:center;color:#666;white-space:nowrap;font-variant-numeric:tabular-nums;}' +
       'button{font:14px system-ui;cursor:pointer;border:1px solid #bbb;background:#f6f6f6;border-radius:6px;padding:4px 8px;}' +
       'button:hover{background:#eee;}' +
       '.x{border:none;background:none;color:#888;font-size:16px;padding:2px 4px;}' +
       '</style>' +
       '<div class="bar">' +
       '<input class="q" placeholder="Sanskrit search — ITRANS or देवनागरी" spellcheck="false"/>' +
-      '<select class="mode"><option value="sandhi">sandhi</option><option value="loose">loose</option><option value="exact">exact</option></select>' +
+      '<select class="mode" title="sandhi: precise, auto-falls back to fuzzy · wide: always high-recall · loose · exact"><option value="sandhi">sandhi</option><option value="wide">wide</option><option value="loose">loose</option><option value="exact">exact</option></select>' +
       '<span class="count"></span>' +
       '<button class="prev" title="Previous (Shift+Enter)">▲</button>' +
       '<button class="next" title="Next (Enter)">▼</button>' +
