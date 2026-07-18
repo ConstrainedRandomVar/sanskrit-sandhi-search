@@ -16,7 +16,8 @@
   var HL_CLASS = 'skt-hl', HL_ATTR = 'data-skt-mid';
   var matches = [];      // [{mid, firstMark}] in document order
   var active = -1;
-  var fuzzyActive = false;   // true when showing high-recall (auto-fallback or 'wide' mode) candidates
+  var fuzzyActive = false;   // true when any "possible" (dashed) matches are shown
+  var exactN = 0, possibleN = 0;   // counts for the current search (solid vs dashed)
   var bar = null, input = null, modeSel = null, countEl = null;
 
   // ---- page-level style for our <mark>s (light DOM, so needs !important).
@@ -84,6 +85,10 @@
       acceptNode: function (n) {
         if (!n.data || !/\S/.test(n.data)) return NodeFilter.FILTER_REJECT;
         if (skippable(n)) return NodeFilter.FILTER_REJECT;
+        // skip text in hidden subtrees (display:none) — SPAs render duplicate/off-screen
+        // copies; highlighting them inflates the count and traps Next on invisible nodes.
+        var pe = n.parentElement;
+        if (pe && pe.getClientRects().length === 0) return NodeFilter.FILTER_REJECT;
         return NodeFilter.FILTER_ACCEPT;
       }
     });
@@ -110,15 +115,15 @@
     matches = []; active = -1;
   }
 
-  // wrap one text node given its non-overlapping ascending segments [{start,end,mid}]
-  function wrapNode(node, segs, fuzzy) {
+  // wrap one text node given its non-overlapping ascending segments [{start,end,mid,fuzzy}]
+  function wrapNode(node, segs) {
     var text = node.data, frag = document.createDocumentFragment(), pos = 0;
     var col = chooseColors(node.parentElement);   // all marks in this node share the node's background
     for (var i = 0; i < segs.length; i++) {
       var s = segs[i];
       if (s.start > pos) frag.appendChild(document.createTextNode(text.slice(pos, s.start)));
       var mk = document.createElement('mark');
-      mk.className = HL_CLASS + (fuzzy ? ' skt-fuzzy' : '');   // fuzzy = high-recall/possible match (dashed outline)
+      mk.className = HL_CLASS + (s.fuzzy ? ' skt-fuzzy' : '');   // fuzzy = high-recall/possible match (dashed outline)
       mk.setAttribute(HL_ATTR, String(s.mid));
       mk.setAttribute('data-skt-base', col.base); mk.setAttribute('data-skt-act', col.act);
       mk.setAttribute('data-skt-bfg', col.baseFg); mk.setAttribute('data-skt-afg', col.actFg);
@@ -132,37 +137,9 @@
     node.parentNode.replaceChild(frag, node);
   }
 
-  // Run ONE expansion over the page: find spans per block, wrap them (fuzzy → tentative
-  // dashed styling). Returns the number of match runs wrapped.
-  function applyExpansion(ex, fuzzy) {
-    var groups = collectBlocks();
-    var mid = 0, found = 0;
-    var perNode = new Map(); // textNode -> [{start,end,mid}]
-    groups.forEach(function (nodes) {
-      // build block surface + per-char (node, offset) index
-      var surface = '', idx = [];
-      for (var i = 0; i < nodes.length; i++) {
-        var d = nodes[i].data;
-        for (var j = 0; j < d.length; j++) { surface += d[j]; idx.push({ node: nodes[i], off: j }); }
-      }
-      var spans = HL.findSpans(surface, ex, SS);
-      for (var s = 0; s < spans.length; s++) {
-        var a = spans[s][0], b = spans[s][1], thisMid = mid++; found++;
-        // split the [a,b) run into per-node contiguous segments
-        var cur = null;
-        for (var c = a; c < b; c++) {
-          var e = idx[c];
-          if (cur && cur.node === e.node && e.off === cur.end) { cur.end = e.off + 1; }
-          else { if (cur) pushSeg(perNode, cur); cur = { node: e.node, start: e.off, end: e.off + 1, mid: thisMid }; }
-        }
-        if (cur) pushSeg(perNode, cur);
-      }
-    });
-    perNode.forEach(function (segs, node) {
-      segs.sort(function (x, y) { return x.start - y.start; });
-      wrapNode(node, segs, fuzzy);
-    });
-    return found;
+  function spansOverlap(a, list) {   // does [start,end] a overlap any span in list?
+    for (var i = 0; i < list.length; i++) { if (a[0] < list[i][1] && list[i][0] < a[1]) return true; }
+    return false;
   }
   function rebuildMatchList() {   // ordered match list from the DOM (document order)
     matches = [];
@@ -172,20 +149,48 @@
       if (!seen[m]) { seen[m] = 1; matches.push(all[k]); }
     }
   }
+  // sandhi is ADDITIVE: exact hits render SOLID; every EXTRA high-recall candidate renders
+  // DASHED ("possible"). No manual 'wide' needed, and it's consistent whether or not the page
+  // also happens to contain an exact form (e.g. a pada-split अस्त्रियाम् next to fused गुणेऽस्त्रियाम्).
   function runSearch() {
     clearHighlights();
     var raw = input.value.trim();
-    if (!raw) { fuzzyActive = false; updateCount(); return; }
+    if (!raw) { exactN = possibleN = 0; fuzzyActive = false; updateCount(); return; }
     ensurePageStyle();
-    var mode = modeSel.value, wideMode = (mode === 'wide');
-    var count = applyExpansion(SS.expandQuery(raw, wideMode ? 'sandhi' : mode, wideMode), wideMode);
-    fuzzyActive = wideMode;
-    // Never mislead with a bare "0": if a precise sandhi search finds nothing, fall back to
-    // the high-recall pass and label its results as possible/fuzzy (see updateCount).
-    if (count === 0 && mode === 'sandhi') {
-      count = applyExpansion(SS.expandQuery(raw, 'sandhi', true), true);
-      fuzzyActive = true;
-    }
+    var mode = modeSel.value;
+    var precise = null, wide = null;
+    if (mode === 'wide') wide = SS.expandQuery(raw, 'sandhi', true);            // all high-recall (dashed)
+    else if (mode === 'sandhi') { precise = SS.expandQuery(raw, 'sandhi'); wide = SS.expandQuery(raw, 'sandhi', true); }
+    else precise = SS.expandQuery(raw, mode);                                   // loose / exact: precise only
+    var groups = collectBlocks();
+    var perNode = new Map();   // textNode -> [{start,end,mid,fuzzy}]
+    var mid = 0; exactN = 0; possibleN = 0;
+    groups.forEach(function (nodes) {
+      var surface = '', idx = [];
+      for (var i = 0; i < nodes.length; i++) {
+        var d = nodes[i].data;
+        for (var j = 0; j < d.length; j++) { surface += d[j]; idx.push({ node: nodes[i], off: j }); }
+      }
+      var exactSpans = precise ? HL.findSpans(surface, precise, SS) : [];
+      var allSpans = wide ? HL.findSpans(surface, wide, SS) : exactSpans;
+      for (var s = 0; s < allSpans.length; s++) {
+        var a = allSpans[s][0], b = allSpans[s][1];
+        var isFuzzy = (mode === 'wide') ? true : (mode === 'sandhi' ? !spansOverlap(allSpans[s], exactSpans) : false);
+        if (isFuzzy) possibleN++; else exactN++;
+        var thisMid = mid++, cur = null;
+        for (var c = a; c < b; c++) {
+          var e = idx[c];
+          if (cur && cur.node === e.node && e.off === cur.end) { cur.end = e.off + 1; }
+          else { if (cur) pushSeg(perNode, cur); cur = { node: e.node, start: e.off, end: e.off + 1, mid: thisMid, fuzzy: isFuzzy }; }
+        }
+        if (cur) pushSeg(perNode, cur);
+      }
+    });
+    perNode.forEach(function (segs, node) {
+      segs.sort(function (x, y) { return x.start - y.start; });
+      wrapNode(node, segs);
+    });
+    fuzzyActive = possibleN > 0;
     rebuildMatchList();
     active = matches.length ? 0 : -1;
     updateCount();
@@ -227,9 +232,11 @@
       countEl.style.color = '#666'; countEl.title = '';
       return;
     }
-    countEl.textContent = (active + 1) + ' / ' + matches.length + (fuzzyActive ? ' possible' : '');
-    countEl.style.color = fuzzyActive ? '#b45309' : '#666';   // amber signals tentative/high-recall hits
-    countEl.title = fuzzyActive ? 'No exact match — showing sandhi-fuzzy candidates. Add a word to refine.' : '';
+    var label = (active + 1) + ' / ' + matches.length;
+    if (possibleN > 0) label += (exactN > 0) ? ' · ' + possibleN + ' possible' : ' possible';
+    countEl.textContent = label;
+    countEl.style.color = (possibleN > 0) ? '#b45309' : '#666';   // amber signals possible (dashed) hits
+    countEl.title = (possibleN > 0) ? possibleN + ' possible (sandhi-fuzzy) match(es), shown dashed — add a word to refine.' : '';
   }
 
   // ---- UI (shadow root) ----
