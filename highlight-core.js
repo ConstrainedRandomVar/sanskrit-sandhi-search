@@ -57,7 +57,7 @@
         var k = hay.indexOf(c.s, from);
         if (k < 0) break;
         from = k + 1;
-        if (!c.drop && k !== 0 && hay[k - 1] !== ' ') continue;   // space-preserving: require word boundary (mirrors stemMatch)
+        if (ex.mode !== 'exact' && !c.drop && k !== 0 && hay[k - 1] !== ' ') continue;   // space-preserving: require word boundary (mirrors stemMatch); exact-match is unanchored, like a plain Find
         var start = mp[k], end = mp[Math.min(k + c.s.length, mp.length - 1)];
         if (SS.extendEnd) end = SS.extendEnd(surface, end);   // swallow trailing ्/ं/ः/mātrā so stem matches don't leave a dangling sign
         while (end > start && /[\s‌‍]/.test(surface[end - 1])) end--;   // don't end a match on a trailing space / ZW-joiner (anusvāra-across-space matches)

@@ -9,7 +9,7 @@ policy URL are the only things you must supply yourself (see checklist at bottom
 Sanskrit Sandhi Search
 
 ## Summary (short description, ≤132 chars)
-Sandhi-tolerant find-on-page for Devanāgarī: type a citation-form query (ITRANS or देवनागरी) to highlight sandhi-fused matches.
+Sandhi-tolerant find-on-page for Devanāgarī: search in ITRANS, IAST, or देवनागरी for sandhi-fused matches.
 
 ## Category
 Productivity   (alternative: Tools)
@@ -31,11 +31,12 @@ Examples:
 
 Highlights:
 • Sandhi-aware, high-recall matching (visarga, vowel sandhi, mātrā fusion, and more).
-• Type in ITRANS (e.g. buddheH jAyamAnAH) or paste Devanāgarī directly.
+• Type in ITRANS (e.g. buddheH jAyamAnAH) or IAST (e.g. buddheḥ jāyamānāḥ) — auto-detected,
+  no setting to configure — or paste Devanāgarī directly.
 • Orthography- and space-tolerant: canonicalizes both your query and the page text
   so equivalent spellings match.
 • In-place highlighting with next/previous navigation and a match counter.
-• Modes: sandhi (default; shows exact hits plus any additional sandhi-fuzzy "possible" candidates (dashed), so fused occurrences are never missed) · loose (space-insensitive) · exact.
+• Modes: sandhi (default; shows exact hits plus any additional sandhi-fuzzy "possible" candidates (dashed), so fused occurrences are never missed) · exact match (literal substring, like your browser's Find).
 
 Privacy: 100% local. No network calls, no accounts, no tracking, no data leaves
 your browser.

@@ -170,7 +170,7 @@
     var mode = modeSel.value;
     var precise = null, wide = null;
     if (mode === 'sandhi') { precise = SS.expandQuery(raw, 'sandhi'); wide = SS.expandQuery(raw, 'sandhi', true); }
-    else precise = SS.expandQuery(raw, mode);                                   // loose / exact: precise only
+    else precise = SS.expandQuery(raw, mode);                                   // exact: precise only
     var groups = collectBlocks();
     var perNode = new Map();   // textNode -> [{start,end,mid,fuzzy}]
     var mid = 0; exactN = 0; possibleN = 0;
@@ -266,8 +266,8 @@
       '.x{border:none;background:none;color:#888;font-size:16px;padding:2px 4px;}' +
       '</style>' +
       '<div class="bar">' +
-      '<input class="q" placeholder="Sanskrit search — ITRANS or देवनागरी" spellcheck="false"/>' +
-      '<select class="mode" title="sandhi: exact hits + possible (dashed) sandhi-fuzzy candidates · loose: space-insensitive · exact"><option value="sandhi">sandhi</option><option value="loose">loose</option><option value="exact">exact</option></select>' +
+      '<input class="q" placeholder="Sanskrit search — ITRANS, IAST, or देवनागरी" spellcheck="false"/>' +
+      '<select class="mode" title="sandhi: exact hits + possible (dashed) sandhi-fuzzy candidates · exact match: literal substring, like your browser\'s Find"><option value="sandhi">sandhi</option><option value="exact">exact match</option></select>' +
       '<span class="count"></span>' +
       '<button class="prev" title="Previous (Shift+Enter)">▲</button>' +
       '<button class="next" title="Next (Enter)">▼</button>' +

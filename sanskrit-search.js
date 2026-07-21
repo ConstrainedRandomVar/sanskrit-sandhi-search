@@ -152,6 +152,7 @@
         return jas ? a.slice(0, -2) + jas + IM[b[0]] + b.slice(1) : a.slice(0, -1) + IM[b[0]] + b.slice(1);
       }
       var P = a[a.length - 2], Q = b[0], stem = a.slice(0, -2);              // consonant + consonant: dental त्/द् external sandhi (B1)
+      if (P === 'म') return stem + 'ं' + b;                                  // word-final म् + any consonant → anusvāra (8.3.23 मोऽनुस्वारः), unconditional
       if (P === 'त' || P === 'द') {
         if (Q === 'च' || Q === 'छ') return stem + 'च्' + b;                  // ścutva:  तत्+च → तच्च
         if (Q === 'ज' || Q === 'झ') return stem + 'ज्' + b;                  //          तत्+ज → तज्ज
@@ -178,17 +179,18 @@
     if (a.endsWith('ः')) {                                                    // visarga sandhi
       var base = a.slice(0, -1);
       if (a === 'सः' || a === 'एषः') return b[0] === 'अ' ? base + 'ो' + b.slice(1) : base + b; // su-lopa (6.1.132): saḥ/eṣaḥ → sa/eṣa before all but 'a' (so'); only when saḥ/eṣaḥ leads
+      var rAvyaya = { 'पुनः': 1, 'अन्तः': 1, 'प्रातः': 1, 'बहिः': 1, 'आविः': 1, 'तिरः': 1 }[a]; // closed exception list: r-derived visarga (punar/antar/prātar/bahir/āvir/tiras), NOT the general as-stem → o pattern (BG 18.75-adjacent corpus regression: पुनर्विस्तरेण, not पुनोविस्तरेण)
       if (vs) {                                                              // + vowel
         if (base.endsWith('ा')) return base + b;                            //  āḥ + V → ā + V (hiatus)
-        if ('िीुूृॄॢॣेैोौ'.indexOf(base[base.length - 1]) >= 0) return base + sandhiJoin('र्', b); //  (i/u/ṛ/e/o…)ḥ + V → r, r fuses with the vowel as mātrā (ज्ञानैः इति → ज्ञानैरिति)
+        if ('िीुूृॄॢॣेैोौ'.indexOf(base[base.length - 1]) >= 0 || rAvyaya) return base + sandhiJoin('र्', b); //  (i/u/ṛ/e/o…)ḥ + V → r, r fuses with the vowel as mātrā (ज्ञानैः इति → ज्ञानैरिति)
         if (b[0] === 'अ') return base + 'ो' + b.slice(1);                    //  aḥ + a → o' (a elided)
-        return base + b;                                                    //  aḥ + V(non-a) → a + V (hiatus)
+        return base + b;                                                    //  aḥ + V(non-a) → a + V (hiatus, via yatva+lopa 8.3.17/8.3.19 — the following vowel stays independent/unmerged, e.g. rāmaḥ+āgacchati → rāma+āgacchati, NOT the savarna-dīrgha merge rāmāgacchati)
       }
       var sib = { 'च': 'श्', 'छ': 'श्', 'ट': 'ष्', 'ठ': 'ष्', 'त': 'स्', 'थ': 'स्' }[b[0]];
       if (sib) return base + sib + b;                                        //  ḥ → sibilant (ततः+च → ततश्च)
       if ('कखपफशषस'.indexOf(b[0]) >= 0) return a + b;                        //  ḥ retained (before k/kh/p/ph, ś/ṣ/s)
       if (base.endsWith('ा')) return base + b;                              //  āḥ + voiced cons → ā
-      if ('िीुूृॄॢॣेैोौ'.indexOf(base[base.length - 1]) >= 0) return base + 'र्' + b; //  (i/u/ṛ/e/o…)ḥ + voiced cons → r
+      if ('िीुूृॄॢॣेैोौ'.indexOf(base[base.length - 1]) >= 0 || rAvyaya) return base + 'र्' + b; //  (i/u/ṛ/e/o…)ḥ + voiced cons → r
       return base + 'ो' + b;                                                //  aḥ + voiced cons → o
     }
     return vowelSandhi(a, b, elideAv);                                       // vowel-final
@@ -206,8 +208,24 @@
   };
   var SIGN = { M: 'ं', '.m': 'ं', H: 'ः', '.a': 'ऽ', '.n': 'ँ', '.h': '्', '|': '।' };
   var KEYS = Object.keys(V).concat(Object.keys(C)).concat(Object.keys(SIGN)).sort(function (a, b) { return b.length - a.length; });
-  function toDeva(s) {
-    if (/[ऀ-ॿ]/.test(s)) return s;
+
+  // ---- IAST → Devanāgarī (standard diacritic convention: ā ī ū ṛ ṝ ḷ ḹ ṅ ñ ṭ ḍ ṇ ś ṣ ṃ ḥ; case-insensitive,
+  // unlike ITRANS where case is phonemic — matched only when a diacritic is present, see IAST_DIACRITICS) ----
+  var V_IAST = {
+    a: ['अ', ''], 'ā': ['आ', 'ा'], i: ['इ', 'ि'], 'ī': ['ई', 'ी'], u: ['उ', 'ु'], 'ū': ['ऊ', 'ू'],
+    'ṛ': ['ऋ', 'ृ'], 'ṝ': ['ॠ', 'ॄ'], 'ḷ': ['ऌ', 'ॢ'], 'ḹ': ['ॡ', 'ॣ'], e: ['ए', 'े'], ai: ['ऐ', 'ै'], o: ['ओ', 'ो'], au: ['औ', 'ौ']
+  };
+  var C_IAST = {
+    k: 'क', kh: 'ख', g: 'ग', gh: 'घ', 'ṅ': 'ङ', c: 'च', ch: 'छ', j: 'ज', jh: 'झ', 'ñ': 'ञ',
+    'ṭ': 'ट', 'ṭh': 'ठ', 'ḍ': 'ड', 'ḍh': 'ढ', 'ṇ': 'ण', t: 'त', th: 'थ', d: 'द', dh: 'ध', n: 'न',
+    p: 'प', ph: 'फ', b: 'ब', bh: 'भ', m: 'म', y: 'य', r: 'र', l: 'ल', v: 'व', 'ś': 'श', 'ṣ': 'ष', s: 'स', h: 'ह'
+  };
+  var SIGN_IAST = { 'ṃ': 'ं', 'ṁ': 'ं', 'ḥ': 'ः', "'": 'ऽ', '|': '।' };
+  var KEYS_IAST = Object.keys(V_IAST).concat(Object.keys(C_IAST)).concat(Object.keys(SIGN_IAST)).sort(function (a, b) { return b.length - a.length; });
+  var IAST_DIACRITICS = /[āīūṛṝḷḹṅñṭḍṇśṣṃṁḥ]/i; // presence of any of these is unambiguous: ITRANS is pure ASCII and never produces them
+
+  // shared longest-match tokenizer for both ITRANS and IAST table sets
+  function transliterateTable(s, V, C, SIGN, KEYS) {
     var out = '', p = false, i = 0;
     var fl = function () { if (p) { out += '्'; p = false; } };
     while (i < s.length) {
@@ -220,6 +238,12 @@
       i += m.length;
     }
     fl(); return out;
+  }
+  function toDeva(s) {
+    s = s.normalize('NFC'); // IAST diacritics may arrive precomposed or decomposed depending on input method
+    if (/[ऀ-ॿ]/.test(s)) return s;
+    if (IAST_DIACRITICS.test(s)) return transliterateTable(s.toLowerCase(), V_IAST, C_IAST, SIGN_IAST, KEYS_IAST);
+    return transliterateTable(s, V, C, SIGN, KEYS);
   }
 
   // ---- highlighting helpers (return sentinel-marked plain text) ----
