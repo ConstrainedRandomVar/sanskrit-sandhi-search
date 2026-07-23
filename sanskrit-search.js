@@ -219,7 +219,7 @@
     'RRi': ['ऋ', 'ृ'], 'R^i': ['ऋ', 'ृ'], 'RRI': ['ॠ', 'ॄ'], 'LLi': ['ऌ', 'ॢ'], e: ['ए', 'े'], ai: ['ऐ', 'ै'], o: ['ओ', 'ो'], au: ['औ', 'ौ']
   };
   var C = {
-    k: 'क', kh: 'ख', g: 'ग', gh: 'घ', '~N': 'ङ', 'N^': 'ङ', ch: 'छ', Ch: 'छ', c: 'च', j: 'ज', jh: 'झ', '~n': 'ञ', 'JN': 'ञ',
+    k: 'क', kh: 'ख', g: 'ग', gh: 'घ', '~N': 'ङ', 'N^': 'ङ', c: 'च', ch: 'च', Ch: 'छ', chh: 'छ', j: 'ज', jh: 'झ', '~n': 'ञ', 'JN': 'ञ',
     T: 'ट', Th: 'ठ', D: 'ड', Dh: 'ढ', N: 'ण', t: 'त', th: 'थ', d: 'द', dh: 'ध', n: 'न', p: 'प', ph: 'फ', b: 'ब', bh: 'भ', m: 'म',
     y: 'य', r: 'र', l: 'ल', v: 'व', w: 'व', sh: 'श', Sh: 'ष', shh: 'ष', S: 'ष', s: 'स', h: 'ह', L: 'ळ', x: 'क्ष', kSh: 'क्ष', 'GY': 'ज्ञ', 'j~n': 'ज्ञ', dny: 'ज्ञ'
   };
@@ -258,6 +258,12 @@
   }
   function toDeva(s) {
     s = s.normalize('NFC'); // IAST diacritics may arrive precomposed or decomposed depending on input method
+    // ISO 15919 writes vocalic r/l with a RING below (r̥ = r + U+0325, l̥ = l + U+0325; long forms add a
+    // macron U+0304); IAST writes them with a DOT below (ṛ=U+1E5B, ṝ, ḷ, ḹ). Windows/academic input often
+    // produces the ISO-15919 ring form, which the IAST tables don't know — map it to the IAST equivalent
+    // up front so it resolves correctly (else the r is read as a bare consonant, e.g. vṛ→व्र). Longer
+    // (macron) form first. NFC orders ring-below (ccc 220) before macron (ccc 230).
+    s = s.replace(/[rR]̥̄/g, 'ṝ').replace(/[rR]̥/g, 'ṛ').replace(/[lL]̥̄/g, 'ḹ').replace(/[lL]̥/g, 'ḷ');
     if (/[ऀ-ॿ]/.test(s)) return s;
     if (IAST_DIACRITICS.test(s)) return transliterateTable(s.toLowerCase(), V_IAST, C_IAST, SIGN_IAST, KEYS_IAST);
     return transliterateTable(s, V, C, SIGN, KEYS);
@@ -526,7 +532,15 @@
     }
     for (var fi = 0; fi < firstAlts.length; fi++) {
       var fa = firstAlts[fi];
-      if (words.length === 1) { pushLC(normalize(fa, true)); continue; }
+      if (words.length === 1) {
+        var fan = normalize(fa, true); pushLC(fan);
+        // a single-word query's final म was folded to anusvāra here (word-final), but in running text it
+        // may be followed by an out-of-query VOWEL and stay a bare म (शुक्रम्+अकायम् → …च्छुक्रम…, not
+        // …च्छुक्रं). Emit the bare-म variant too (mirrors lastMBare), else `shukram` alone misses Īśā 1.8
+        // while `shukram akAyam` finds it.
+        if (fan.slice(-1) === 'ं') pushLC(fan.slice(0, -1) + 'म');
+        continue;
+      }
       var faWords = [fa].concat(words.slice(1));
       leftSpaced.push(faWords.join(' '));
       for (var lv3 = 0; lv3 < lastVars.length; lv3++) pushLC(joinMask(faWords, (1 << nb) - 1, lastVars[lv3], false));
