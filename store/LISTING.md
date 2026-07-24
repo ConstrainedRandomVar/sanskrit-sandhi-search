@@ -20,9 +20,10 @@ English
 ## Detailed description
 A sandhi-tolerant “find on page” for Sanskrit / Devanāgarī.
 
-Type a phrase in its citation (pausā) form — in ITRANS or in Devanāgarī — and the
-extension highlights where it actually occurs in the running text, including the
-sandhi-fused forms that the browser’s own Ctrl-F and most site searches miss.
+Type a phrase as separate words in their citation (pausā) form — in ITRANS or
+Devanāgarī — and the extension works out the sandhi between them, highlighting where
+the phrase actually occurs in the running text, including fused forms that the
+browser’s own Ctrl-F and most site searches miss.
 
 Examples:
 • buddheḥ jāyamānāḥ  →  finds  बुद्धेर्जायमानाः

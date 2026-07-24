@@ -2,9 +2,10 @@
 
 A sandhi-tolerant **“find on page”** for Sanskrit / Devanāgarī, as a Chrome (MV3) extension.
 
-Type a phrase in its citation (pausā) form — in **ITRANS** or **Devanāgarī** — and it
-highlights where the phrase actually occurs in running text, including the **sandhi-fused**
-forms that the browser’s own Ctrl-F and most site searches miss.
+Type a phrase as separate words in their citation (pausā) form — in **ITRANS** or
+**Devanāgarī** — and it works out the sandhi between them, highlighting where the phrase
+actually occurs in running text, including **sandhi-fused** forms that the browser’s own
+Ctrl-F and most site searches miss.
 
 ```
 buddheḥ jāyamānāḥ   →  finds  बुद्धेर्जायमानाः
