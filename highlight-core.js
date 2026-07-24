@@ -28,7 +28,8 @@
       { s: ex.stems[0], drop: true }, { s: ex.mls, drop: true }, { s: ex.mlsA, drop: true }, { s: ex.mlsBare, drop: false, requireGlued: true },
       { s: ex.nasalA, drop: false }, { s: ex.nasalA, drop: true }   // word-final nasal → anusvāra (kurvan → कुर्वं)
     ].concat((ex.mlsE || []).map(function (s) { return { s: s, drop: true, noStart: true }; }))   // leading-अ elided, े/ो-anchored (गुणेऽस्त्रियाम्) — the े/ो anchor is meant to start the highlight, not get pulled back
-     .concat((ex.leftCombos || []).map(function (s) { return { s: s, drop: true, noStart: true }; }))   // left-edge sh→chh / guṇa-vṛddhi lead (mātrā-initial → noStart, like mlsE)
+     .concat((ex.leftCombos || []).map(function (s) { return { s: s, drop: true, noStart: true }; }))   // left-edge sh→chh / guṇa-vṛddhi lead (mātrā-initial → noStart, like mlsE) + their own LEFT×RIGHT composed tails
+     .concat((ex.mlsBareCombos || []).map(function (s) { return { s: s, drop: false, requireGlued: true }; }))   // mlsBare's own right-edge tail fusions — same glued gate as mlsBare itself
      .concat((ex.swRight || []).map(function (s) { return { s: s, drop: true }; }));                    // single-word right-edge jaśtva / savarṇa-long / yaṇ / a-class core (already normalized)
     var list = [                                           // multi-word sandhi (same set snippet() tries)
       { s: ex.spaced, drop: false }, { s: ex.joined, drop: true }, { s: ex.joinedStem, drop: true },

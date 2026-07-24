@@ -41,6 +41,12 @@
   var IMATRA = { 'आ': 'ा', 'इ': 'ि', 'ई': 'ी', 'उ': 'ु', 'ऊ': 'ू', 'ऋ': 'ृ', 'ॠ': 'ॄ', 'ऌ': 'ॢ', 'ए': 'े', 'ऐ': 'ै', 'ओ': 'ो', 'औ': 'ौ' };
   var NAS = 'ङञणनम';
   var SKIP = function (c) { return c === '‌' || c === '‍' || c === 'ऽ'; }; // ZWNJ, ZWJ, avagraha
+  // right-edge consonant/vowel mutation tables — shared by the multi-word lastVars build AND
+  // rightEdgeVariants (single-word LEFT×RIGHT composition, v1.3.2), so both stay in lockstep.
+  var YAN = { 'ि': '्य', 'ी': '्य', 'ु': '्व', 'ू': '्व', 'ृ': '्र', 'ॄ': '्र' };           // yaṇ: i/u/ṛ → semivowel
+  var JAS = { 'क': 'ग', 'च': 'ज', 'ट': 'ड', 'त': 'द', 'प': 'ब' };                           // jaśtva: stop voices before a vowel
+  var STOPC = { 'क': 1, 'च': 1, 'ट': 1, 'त': 1, 'प': 1 };                                   // stops that go to homorganic nasal before a nasal
+  var SVDL = { 'ि': 'ी', 'ु': 'ू', 'ृ': 'ॄ' };                                              // savarṇa-dīrgha: short ik vowel lengthens before its own kind
   var M1 = '\u0001', M2 = '\u0002'; // highlight sentinels (consumer replaces with <mark>/</mark>)
 
   // ---- ONE normalization core → both normalize() and normMap() (A1/A2/A5) ----
@@ -127,6 +133,36 @@
   // Length-gated (base ≥ 4) so short words (सन् → सं) don't flood the index.
   function nasalAnusvara(w, wide) {
     return (/[नङण]्$/.test(w) && (wide || w.length - 2 >= 4)) ? w.slice(0, -2) + 'ं' : '';
+  }
+
+  // Single-word LEFT×RIGHT composition (v1.3.2). A single-word query's left-edge candidate
+  // (leftCombos' sh→chh/guṇa-vṛddhi lead, or mls/mlsA/mlsBare/mlsE) is ITSELF the whole query
+  // word — so it also has its OWN right edge, fusable onto a second unknown (FOLLOWING) word,
+  // exactly like the multi-word branch crosses joinMask × lastVars. Without this, only the
+  // multi-word 2-word phrasing finds such a fusion; its 1-word reduction misses (the confirmed
+  // gaps: upAdhi, udyat, sharman, shishuH, adri, indu — see EDGE-SANDHI-PLAN.md §NEXT).
+  // Mirrors lastVars' member rules — yaṇ, savarṇa-dīrgha, jaśtva, a-class core strip (lastCore),
+  // nasal→anusvāra (nasalAnusvara, which also covers न्/ङ्/ण्-doubling-before-vowel: that
+  // doubles then normalize()'s generic nasal+halant+consonant rule folds it to anusvāra), stop→
+  // nasal, त-final ścutva/ṣṭutva/latva, and bare-म (word-final म्+vowel) — applied to `form`'s
+  // own tail. All wide-only (dashed): each variant is a neighbor-fusion.
+  function rightEdgeVariants(form, wide) {
+    if (!form) return [];
+    var out = [], last = form.slice(-1), pen = form.slice(-2, -1);
+    if (YAN[last]) out.push(form.slice(0, -1) + YAN[last]);                    // yaṇ (i/u/ṛ → semivowel)
+    if (SVDL[last]) out.push(form.slice(0, -1) + SVDL[last]);                  // savarṇa-dīrgha
+    if (last === '्' && JAS[pen]) out.push(form.slice(0, -2) + JAS[pen]);      // jaśtva
+    var core = form.replace(/[ःंँ्]+$/, '').replace(/ा$/, '');
+    if (core !== form) out.push(core);                                        // a-class core strip (lastCore)
+    var na = nasalAnusvara(form, wide);
+    if (na) out.push(na);                                                     // nasal→anusvāra (incl. doubling fold)
+    if (last === '्' && STOPC[pen]) out.push(form.slice(0, -2) + 'ं');         // stop→nasal
+    if (form.slice(-2) === 'त्') {
+      var tb = form.slice(0, -2);
+      out.push(tb + 'च', tb + 'ज', tb + 'ट', tb + 'ड', tb + 'ल');             // त-ścutva/ṣṭutva/latva
+    }
+    if (last === 'ं') out.push(form.slice(0, -1) + 'म');                      // bare-म (word-final म्+vowel)
+    return out;
   }
 
   // external VOWEL sandhi: a (vowel/consonant-final) + b (vowel-initial)
@@ -432,13 +468,11 @@
     var pushC = function (s) { if (s && !seen[s]) { seen[s] = 1; combos.push(s); } };
     // right-edge yaṇ: a vowel-final last word can turn its final i/u/ṛ into a semivowel before a
     // following out-of-query vowel (agni uṣṇa → agny-uṣṇa → अग्ंयु; jānāmi iti → jānāmīty…).
-    var YAN = { 'ि': '्य', 'ी': '्य', 'ु': '्व', 'ू': '्व', 'ृ': '्र', 'ॄ': '्र' };
     var lastW = words.length ? words[words.length - 1] : '';
     var lastYan = YAN[lastW[lastW.length - 1]] ? lastW.slice(0, -1) + YAN[lastW[lastW.length - 1]] : '';
     // right-edge jaś-tva: a stop-final last word voices before a following out-of-query vowel and the
     // vowel fuses onto it as a mātrā, so the matchable prefix is the bare voiced stem (viruddhatvāt iti
     // → viruddhatvād ity… → विरुद्धत्वादि; the प्रेfix विरुद्धत्वाद matches).
-    var JAS = { 'क': 'ग', 'च': 'ज', 'ट': 'ड', 'त': 'द', 'प': 'ब' };
     var lastJas = (lastW.slice(-1) === '्' && JAS[lastW.slice(-2, -1)]) ? lastW.slice(0, -2) + JAS[lastW.slice(-2, -1)] : '';
     // right-edge: last word's word-final nasal → anusvāra (doubled before a following out-of-query vowel)
     var lastNasalA = nasalAnusvara(lastW, wide);
@@ -451,14 +485,12 @@
     // stop→nasal (body+anusvāra: वाक्→वां, षट्→षं, तत्→तं, ककुप्→ककुं before a nasal), and त-final
     // ścutva/ṣṭutva/latva (त्→च/ज/ट/ड/ल). All are strict prefixes of the fused surface, embedded in a
     // multi-word joinMask string (prefixTruncation anchor). Gated to wide because the anusvāra form floods.
-    var STOPC = { 'क': 1, 'च': 1, 'ट': 1, 'त': 1, 'प': 1 };
     var lastStopBody = (lastW.slice(-1) === '्' && STOPC[lastW.slice(-2, -1)]) ? lastW.slice(0, -2) : '';
     var lastStopNasal = lastStopBody ? lastStopBody + 'ं' : '';
     var lastTbody = (lastW.slice(-2) === 'त्') ? lastW.slice(0, -2) : '';
     var lastTvars = lastTbody ? [lastTbody + 'च', lastTbody + 'ज', lastTbody + 'ट', lastTbody + 'ड', lastTbody + 'ल'] : [];
     // right-edge savarṇa-dīrgha: a short-i/u/ṛ-final last word lengthens before the same following vowel
     // (gacchati + iti → gacchatīti). Fixed trace; wide/dashed.
-    var SVDL = { 'ि': 'ी', 'ु': 'ू', 'ृ': 'ॄ' };
     var lastSavarnaDirgha = SVDL[lastW.slice(-1)] ? lastW.slice(0, -1) + SVDL[lastW.slice(-1)] : '';
     var lastVars = words.length ? [lastW, lastStem, lastCore, lastYan, lastJas, lastNasalA, lastMBare]
       .concat(wide ? [lastStopNasal, lastSavarnaDirgha].concat(lastTvars) : [])
@@ -523,6 +555,14 @@
     // form itself. Mātrā-initial forms (vowel cases) anchor on the preceding word's consonant (noStart).
     var leftCombos = [], leftSpaced = [], seenLC = {};
     var pushLC = function (s) { if (s && !seenLC[s]) { seenLC[s] = 1; leftCombos.push(s); } };
+    // mlsBare-derived LEFT×RIGHT products need the SAME "glued" correctness gate mlsBare itself has
+    // (a bare-stem candidate with no mātrā/literal anchor of its own is only a valid अ-absorption
+    // reading when it's immediately preceded by a bare consonant — see mlsBare's own comment) — so
+    // they get a separate array threaded through matches()/snippet()/candidatesFor() with requireGlued,
+    // instead of the plain-substring leftCombos (whose other members are all self-anchoring: mātrā-
+    // initial, or the already-ungated sh→chh cluster).
+    var mlsBareCombos = [], seenMBC = {};
+    var pushMBC = function (s) { if (s && !seenMBC[s]) { seenMBC[s] = 1; mlsBareCombos.push(s); } };
     var firstAlts = [], w00 = words[0] || '';
     if (wide && w00[0] === 'श' && (stems[0] || '').length >= 4) firstAlts.push('च्छ' + w00.slice(1));
     if (wide && (stems[0] || '').length >= 5) {
@@ -534,17 +574,31 @@
       var fa = firstAlts[fi];
       if (words.length === 1) {
         var fan = normalize(fa, true); pushLC(fan);
-        // a single-word query's final म was folded to anusvāra here (word-final), but in running text it
-        // may be followed by an out-of-query VOWEL and stay a bare म (शुक्रम्+अकायम् → …च्छुक्रम…, not
-        // …च्छुक्रं). Emit the bare-म variant too (mirrors lastMBare), else `shukram` alone misses Īśā 1.8
-        // while `shukram akAyam` finds it.
-        if (fan.slice(-1) === 'ं') pushLC(fan.slice(0, -1) + 'म');
+        // this left-edge candidate IS the whole query word, so its own right edge may ALSO fuse onto
+        // an unknown FOLLOWING word (LEFT×RIGHT composition, v1.3.2) — e.g. sharman's sh→chh lead
+        // (च्छर्मन्) also needs its न्-doubling→anusvāra tail (तच्छर्मन्निति). Subsumes the former
+        // ad-hoc bare-म-only line (now just one of rightEdgeVariants' cases).
+        var faRev = rightEdgeVariants(fan, wide);
+        for (var fri = 0; fri < faRev.length; fri++) pushLC(normalize(faRev[fri], true));
         continue;
       }
       var faWords = [fa].concat(words.slice(1));
       leftSpaced.push(faWords.join(' '));
       for (var lv3 = 0; lv3 < lastVars.length; lv3++) pushLC(joinMask(faWords, (1 << nb) - 1, lastVars[lv3], false));
       pushLC(normalize(faWords.join(''), true));
+    }
+    // Same LEFT×RIGHT composition for the OTHER single-word left-edge families — mls/mlsA (mātrā-
+    // initial, self-anchoring) join leftCombos; mlsE (already an array, mātrā-initial) too; mlsBare
+    // (bare-stem, needs the glued gate) goes to mlsBareCombos instead. Fixes: adri (mlsBare/mlsA ×
+    // savarṇa), indu (mls × savarṇa).
+    if (words.length === 1) {
+      var mlsFamily = [mls, mlsA].concat(mlsE);
+      for (var mfi = 0; mfi < mlsFamily.length; mfi++) {
+        var mfRev = rightEdgeVariants(mlsFamily[mfi], wide);
+        for (var mfr = 0; mfr < mfRev.length; mfr++) pushLC(normalize(mfRev[mfr], true));
+      }
+      var mbRev = rightEdgeVariants(mlsBare, wide);
+      for (var mbr = 0; mbr < mbRev.length; mbr++) pushMBC(normalize(mbRev[mbr], true));
     }
     // single-word right-edge (WIDE/dashed): the sole query word's END fused onto an unknown FOLLOWING
     // word — jaśtva (tat→tad), savarṇa-dīrgha (gacchati→gacchatī), yaṇ (gati→gaty), and the a-class core
@@ -557,7 +611,7 @@
     // match a large fraction of the corpus — the onus is on the user to refine. (When the flood
     // cap/disclosure lands, that manages the volume; nothing is ever suppressed.)
     var swRight = (wide && words.length === 1) ? [lastJas, lastSavarnaDirgha, lastYan, lastCore, lastStopNasal].concat(lastTvars).filter(function (x) { return x; }).map(function (x) { return normalize(x, true); }) : [];
-    return { q: q, qn: qn, qnc: qnc, mode: mode, words: words, stems: stems, spaced: spaced, abut: abut, joined: joined, joinedStem: joinedStem, joinedCore: joinedCore, mls: mls, mlsA: mlsA, spacedM: spacedM, abutM: abutM, joinedM: joinedM, joinedMStem: joinedMStem, joinedMCore: joinedMCore, nasalA: nasalA, mlsE: mlsE, mlsBare: mlsBare, combos: combos, leftCombos: leftCombos, leftSpaced: leftSpaced, swRight: swRight };
+    return { q: q, qn: qn, qnc: qnc, mode: mode, words: words, stems: stems, spaced: spaced, abut: abut, joined: joined, joinedStem: joinedStem, joinedCore: joinedCore, mls: mls, mlsA: mlsA, spacedM: spacedM, abutM: abutM, joinedM: joinedM, joinedMStem: joinedMStem, joinedMCore: joinedMCore, nasalA: nasalA, mlsE: mlsE, mlsBare: mlsBare, combos: combos, leftCombos: leftCombos, leftSpaced: leftSpaced, mlsBareCombos: mlsBareCombos, swRight: swRight };
   }
   function prepBlock(surface) { return { s: surface, _n: normalize(surface), _nc: normalize(surface, true) }; }
   function matches(b, ex) {
@@ -565,7 +619,7 @@
     if (mode === 'exact') return b._n.includes(ex.qn);
     if (mode === 'loose') return b._n.includes(ex.qn) || b._nc.includes(ex.qnc);
     if (mode === 'cooccur') return coMatch(b.s, ex.stems);
-    if (ex.stems.length <= 1) return !!(ex.stems[0] && (stemMatch(b._n, ex.stems) || b._nc.includes(ex.stems[0]) || (ex.mls && b._nc.includes(ex.mls)) || (ex.mlsA && b._nc.includes(ex.mlsA)) || (ex.mlsE && ex.mlsE.some(function (s) { return b._nc.includes(s); })) || (ex.mlsBare && gluedMatch(b._n, ex.mlsBare)) || (ex.nasalA && (stemMatch(b._n, [ex.nasalA]) || b._nc.includes(ex.nasalA))) || (ex.leftCombos && ex.leftCombos.some(function (s) { return b._nc.includes(s); })) || (ex.swRight && ex.swRight.some(function (s) { return b._nc.includes(s); }))));
+    if (ex.stems.length <= 1) return !!(ex.stems[0] && (stemMatch(b._n, ex.stems) || b._nc.includes(ex.stems[0]) || (ex.mls && b._nc.includes(ex.mls)) || (ex.mlsA && b._nc.includes(ex.mlsA)) || (ex.mlsE && ex.mlsE.some(function (s) { return b._nc.includes(s); })) || (ex.mlsBare && gluedMatch(b._n, ex.mlsBare)) || (ex.nasalA && (stemMatch(b._n, [ex.nasalA]) || b._nc.includes(ex.nasalA))) || (ex.leftCombos && ex.leftCombos.some(function (s) { return b._nc.includes(s); })) || (ex.mlsBareCombos && ex.mlsBareCombos.some(function (s) { return gluedMatch(b._n, s); })) || (ex.swRight && ex.swRight.some(function (s) { return b._nc.includes(s); }))));
     return b._n.includes(ex.spaced) || b._nc.includes(ex.abut) || (ex.joined && b._nc.includes(ex.joined)) || (ex.joinedStem && b._nc.includes(ex.joinedStem)) || (ex.joinedCore && b._nc.includes(ex.joinedCore))
       || (ex.spacedM && b._n.includes(ex.spacedM)) || (ex.abutM && b._nc.includes(ex.abutM)) || (ex.joinedM && b._nc.includes(ex.joinedM)) || (ex.joinedMStem && b._nc.includes(ex.joinedMStem)) || (ex.joinedMCore && b._nc.includes(ex.joinedMCore))
       || ex.combos.some(function (s) { return b._nc.includes(s); })
@@ -575,7 +629,7 @@
     var mode = ex.mode;
     if (mode === 'cooccur') return snippetCo(b.s, ex.stems);
     if (mode !== 'sandhi') return snippetPlain(b.s, ex.q);
-    if (ex.stems.length <= 1) return snippetAny(b.s, [{ s: ex.stems[0], drop: false }, { s: ex.mls, drop: false }, { s: ex.stems[0], drop: true }, { s: ex.mls, drop: true }, { s: ex.mlsA, drop: true }, { s: ex.mlsBare, drop: false, requireGlued: true }, { s: ex.nasalA, drop: false }, { s: ex.nasalA, drop: true }].concat(ex.mlsE.map(function (s) { return { s: s, drop: true, noStart: true }; })).concat(ex.leftCombos.map(function (s) { return { s: s, drop: true, noStart: true }; })).concat(ex.swRight.map(function (s) { return { s: s, drop: true }; })));
+    if (ex.stems.length <= 1) return snippetAny(b.s, [{ s: ex.stems[0], drop: false }, { s: ex.mls, drop: false }, { s: ex.stems[0], drop: true }, { s: ex.mls, drop: true }, { s: ex.mlsA, drop: true }, { s: ex.mlsBare, drop: false, requireGlued: true }, { s: ex.nasalA, drop: false }, { s: ex.nasalA, drop: true }].concat(ex.mlsE.map(function (s) { return { s: s, drop: true, noStart: true }; })).concat(ex.leftCombos.map(function (s) { return { s: s, drop: true, noStart: true }; })).concat((ex.mlsBareCombos || []).map(function (s) { return { s: s, drop: false, requireGlued: true }; })).concat(ex.swRight.map(function (s) { return { s: s, drop: true }; })));
     return snippetAny(b.s, [{ s: ex.spaced, drop: false }, { s: ex.joined, drop: true }, { s: ex.joinedStem, drop: true }, { s: ex.joinedCore, drop: true }, { s: ex.abut, drop: true }, { s: ex.spacedM, drop: false }, { s: ex.joinedM, drop: true }, { s: ex.joinedMStem, drop: true }, { s: ex.joinedMCore, drop: true }, { s: ex.abutM, drop: true }].concat(ex.combos.map(function (s) { return { s: s, drop: true }; })).concat(ex.leftCombos.map(function (s) { return { s: s, drop: true, noStart: true }; })).concat(ex.leftSpaced.map(function (s) { return { s: s, drop: false }; })));
   }
 
